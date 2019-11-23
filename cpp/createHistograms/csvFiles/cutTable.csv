@@ -1,11 +1,11 @@
 Histogram Number, Histogram Name, Number of Events
-1,NeutrinoEnergy with cut CohBack_slicing,6.10679e+08
-2,NeutrinoEnergy with cut CohBack_dqcuts,4.18906e+08
-3,NeutrinoEnergy with cut CohBack_fiducial,4.47122e+07
-4,NeutrinoEnergy with cut CohBack_containment,1.26606e+07
-5,NeutrinoEnergy with cut CohBack_muonID,7.28144e+06
-6,NeutrinoEnergy with cut CohSig_slicing,2.70386e+06
-7,NeutrinoEnergy with cut CohSig_dqcuts,2.14381e+06
-8,NeutrinoEnergy with cut CohSig_fiducial,248822
-9,NeutrinoEnergy with cut CohSig_containment,110094
-10,NeutrinoEnergy with cut CohSig_muonID,104394
+1,Interaction_RecoCohBkgd_Variable_NeutrinoEnergy_Cut_slicing,6.13119e+08
+2,Interaction_RecoCohBkgd_Variable_NeutrinoEnergy_Cut_dqcuts,4.20787e+08
+3,Interaction_RecoCohBkgd_Variable_NeutrinoEnergy_Cut_fiducial,4.47262e+07
+4,Interaction_RecoCohBkgd_Variable_NeutrinoEnergy_Cut_containment,1.26628e+07
+5,Interaction_RecoCohBkgd_Variable_NeutrinoEnergy_Cut_muonID,7.28261e+06
+6,Interaction_RecoCohSig_Variable_NeutrinoEnergy_Cut_slicing,263195
+7,Interaction_RecoCohSig_Variable_NeutrinoEnergy_Cut_dqcuts,262195
+8,Interaction_RecoCohSig_Variable_NeutrinoEnergy_Cut_fiducial,234816
+9,Interaction_RecoCohSig_Variable_NeutrinoEnergy_Cut_containment,107842
+10,Interaction_RecoCohSig_Variable_NeutrinoEnergy_Cut_muonID,103229

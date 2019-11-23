@@ -24,7 +24,9 @@ void createSpectra()
     truthInteractionCuts.push_back({"TruthCohBkgd", !kTrueNuMuCCCohSig});
 
     std::vector<Vars> vars;
-    vars.push_back({"NeutrinoEnergy", {"Neutrino Energy", Binning::Simple(100, 0, 10), VarFromNuTruthVar(nutrinoEnergy)}});
+    //vars.push_back({"NeutrinoEnergy", {"Neutrino Energy", Binning::Simple(100, 0, 10), VarFromNuTruthVar(nutrinoEnergy)}});
+    vars.push_back({"NumberOfTracks",{"Number of Tracks",Binning::Simple(10,0,10),NumberOfTracks}});
+    vars.push_back({"NumberOfProngs",{"Number of Prongs",Binning::Simple(10,0,10),NumberOfProngs}});
 
     std::vector<TruthVars> trueVars;
     trueVars.push_back({"NeutrinoEnergy", {"Neutrino Energy", Binning::Simple(100, 0, 10),nutrinoEnergy}});
@@ -42,13 +44,13 @@ void createSpectra()
             for (auto cutit = selectionCuts.begin(); cutit != selectionCuts.end(); ++cutit)
                 spectra.push_back({intit->name,varit->name, cutit->name, new Spectrum(lNDMC, varit->axis, cutit->cut && intit->cut, kNoShift, kPPFXFluxCVWgt * kXSecCVWgt2018)});
 
-    for(auto intit=truthInteractionCuts.begin();intit!=truthInteractionCuts.end();++intit)
-            for (auto varit = trueVars.begin(); varit != trueVars.end(); ++varit)
-                spectra.push_back({intit->name,varit->name, "Truth", new Spectrum(lNDMC, varit->axis, intit->cut, kNoShift, kPPFXFluxCVWgtST * kXSecCVWgt2018_smallerDISScale_NT)});
+    // for(auto intit=truthInteractionCuts.begin();intit!=truthInteractionCuts.end();++intit)
+    //     for (auto varit = trueVars.begin(); varit != trueVars.end(); ++varit)
+    //         spectra.push_back({intit->name,varit->name, "Truth", new Spectrum(lNDMC, varit->axis, intit->cut, kNoShift, kPPFXFluxCVWgtST * kXSecCVWgt2018_smallerDISScale_NT)});
 
     lNDMC.Go();
 
-    TFile *f = new TFile("NewFiles.root", "recreate");
+    TFile *f = new TFile("NewFileTrackVsProng.root", "recreate");
     
     std::cout<<"\n"<<std::endl;
 

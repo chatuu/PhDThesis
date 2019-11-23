@@ -160,4 +160,17 @@ const Var kZeta([](const caf::SRProxy *sr) {
   return Zeta;
 });
 
+const Var NumberOfTracks([](const caf::SRProxy *sr){
+  if(sr->vtx.nelastic==0)
+    return -5.0;
+  return double(sr->trk.kalman.ntracks);
+});
+
+const Var NumberOfProngs([](const caf::SRProxy *sr){
+  if(sr->vtx.nelastic==0)
+    return -5.0;
+
+  return double(sr->vtx.elastic[0].fuzzyk.npng);
+});
+
 
