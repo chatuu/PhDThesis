@@ -173,4 +173,65 @@ const Var NumberOfProngs([](const caf::SRProxy *sr){
   return double(sr->vtx.elastic[0].fuzzyk.npng);
 });
 
+const Var calE([](const caf::SRProxy *sr){
+if(sr->vtx.nelastic==0)
+  return -5.0;
+
+return double(sr->slc.calE);
+});
+
+int GetMuonProngId(const caf::SRProxy *sr){
+  int prongNum=0;
+  float maxVal=-1.0;
+
+  if(sr->vtx.nelastic==0 || sr->vtx.elastic[0].fuzzyk.npng==0)
+    return -5;
+
+  for(size_t i=0;i<sr->vtx.elastic[0].fuzzyk.npng;++i){
+    if(sr->vtx.elastic[0].fuzzyk.png[i].cvnpart.muonid>maxVal){
+      maxVal=sr->vtx.elastic[0].fuzzyk.png[i].cvnpart.muonid;
+      prongNum=i;
+    }
+    else if(sr->vtx.elastic[0].fuzzyk.png[i].len>=500){
+      maxVal=1.0;
+      prongNum=i;
+    }
+  }
+  return prongNum;
+}
+
+const Var muonCalE([](const caf::SRProxy *sr){
+  int prongNum=GetMuonProngId(sr);
+  if(prongNum<0)
+    return -5.0;
+  else  
+    return double(sr->vtx.elastic[0].fuzzyk.png[prongNum].calE);
+});
+
+const Var pionCalE([](const caf::SRProxy *sr){
+  int muonNum=GetMuonProngId(sr);
+  if(muonNum<0)
+    return -5.0;
+  else{
+    int prongNum=0;
+    int maxVal=-1;
+    if(sr->vtx.nelastic==0 || sr->vtx.elastic[0].fuzzyk.npng==0)
+      return -5.0;
+
+    for(size_t i=0;i<sr->vtx.elastic[0].fuzzyk.npng;++i){
+      if(sr->vtx.elastic[0].fuzzyk.png[i].cvnpart.pionid>maxVal &&
+        i != muonNum){
+        maxVal=sr->vtx.elastic[0].fuzzyk.png[i].cvnpart.pionid;
+        prongNum=i;
+      }
+    }
+    return double(sr->vtx.elastic[0].fuzzyk.png[prongNum].calE);
+  }
+  //if(sr->vtx.elastic[0].fuzzyk.png[prongNum].truth.pdg == 211)
+  //else if (! ())
+});
+
+const Var vertexAct=calE-muonCalE-pionCalE;
+
+
 

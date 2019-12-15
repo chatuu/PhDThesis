@@ -27,6 +27,10 @@ void createSpectra()
     //vars.push_back({"NeutrinoEnergy", {"Neutrino Energy", Binning::Simple(100, 0, 10), VarFromNuTruthVar(nutrinoEnergy)}});
     vars.push_back({"NumberOfTracks",{"Number of Tracks",Binning::Simple(10,0,10),NumberOfTracks}});
     vars.push_back({"NumberOfProngs",{"Number of Prongs",Binning::Simple(10,0,10),NumberOfProngs}});
+    vars.push_back({"calE",{"calE",Binning::Simple(140,0,14),calE}});
+    vars.push_back({"muonCalE",{"muonCalE",Binning::Simple(140,0,14),muonCalE}});
+    vars.push_back({"pionCalE",{"pionCalE",Binning::Simple(140,0,14),pionCalE}});
+    vars.push_back({"vertexAct",{"vertexAct",Binning::Simple(200,-10,10),vertexAct}});
 
     std::vector<TruthVars> trueVars;
     trueVars.push_back({"NeutrinoEnergy", {"Neutrino Energy", Binning::Simple(100, 0, 10),nutrinoEnergy}});
@@ -50,7 +54,7 @@ void createSpectra()
 
     lNDMC.Go();
 
-    TFile *f = new TFile("NewFileTrackVsProng.root", "recreate");
+    TFile *f = new TFile("TestNewFileTrackVsProng.root", "recreate");
     
     std::cout<<"\n"<<std::endl;
 

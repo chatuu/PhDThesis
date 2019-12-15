@@ -43,3 +43,26 @@ const Cut kNCBkgd([](const caf::SRProxy* sr)
   if(sr->mc.nnu==0) return false;
   return (!(sr->mc.nu[0].iscc)); // Is a NC interaction
 });
+
+// const Cut isPion([](const caf::SRProxy *sr){
+//   int muonNum=GetMuonProngId(sr);
+//   if(muonNum<0)
+//     return -5.0;
+//   else{
+//     int prongNum=0;
+//     int maxVal=-1;
+//     if(sr->vtx.nelastic==0 || sr->vtx.elastic[0].fuzzyk.npng==0)
+//       return -5.0;
+
+//     for(size_t i=0;i<sr->vtx.elastic[0].fuzzyk.npng;++i){
+//       if(sr->vtx.elastic[0].fuzzyk.png[i].cvnpart.pionid>maxVal){
+//         maxVal=sr->vtx.elastic[0].fuzzyk.png[i].cvnpart.pionid;
+//         prongNum=i;
+//       }
+//     }
+//     return (sr->vtx.elastic[0].fuzzyk.png[prongNum].truth.pdg == 211)
+//     //return double(sr->vtx.elastic[0].fuzzyk.png[prongNum].calE);
+//   }
+//   //if(sr->vtx.elastic[0].fuzzyk.png[prongNum].truth.pdg == 211)
+//   //else if (! ())
+// });
