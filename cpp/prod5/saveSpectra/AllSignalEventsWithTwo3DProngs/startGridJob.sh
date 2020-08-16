@@ -1,10 +1,15 @@
 #!/bin/bash
 
+location=$(pwd)
+echo "#!/bin/bash
+submit_cafana.py -n \$1 -ss -r S20-05-04 -o /pnfs/nova/scratch/users/ckuruppu --user_tarball XSec_Testing.tar ${location}/createSpectra.C \$2" >submitJob.sh
+
 declare -a fileList=("createSpectra.C"
 	"vars.h"
 	"headers.h"
 	"structs.h"
-	"cuts.h")
+	"cuts.h"
+	"submitJob.sh")
 echo -e "\n"
 echo "copying the files:"
 
