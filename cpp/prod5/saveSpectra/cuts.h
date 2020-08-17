@@ -1,5 +1,57 @@
 #include "headers.h"
 
+/********************************** Get Muon Prong ID *********************************************************/
+
+unsigned int GetMuonProngId(const caf::SRProxy *sr)
+{
+  int prongNum = 0;
+  float maxVal = -1.0;
+
+  if (sr->vtx.elastic.IsValid != true)
+    return 10000;
+
+  for (size_t i = 0; i < sr->vtx.elastic.fuzzyk.npng; ++i)
+  {
+    if (sr->vtx.elastic.fuzzyk.png[i].cvnpart.muonid > maxVal)
+    {
+      maxVal = sr->vtx.elastic.fuzzyk.png[i].cvnpart.muonid;
+      prongNum = i;
+    }
+    else if (sr->vtx.elastic.fuzzyk.png[i].len >= 500)
+    {
+      maxVal = 1.0;
+      prongNum = i;
+    }
+  }
+  return prongNum;
+}
+
+/********************************** Get Pion Prong ID *********************************************************/
+
+unsigned int GetPionProngId(const caf::SRProxy *sr)
+{
+  unsigned int muonNum = GetMuonProngId(sr);
+  if (muonNum == 10000 || sr->vtx.elastic.IsValid != true)
+    return 10000;
+  else
+  {
+    int prongNum = 0;
+    float maxVal = -1;
+
+    for (unsigned int i = 0; i < sr->vtx.elastic.fuzzyk.npng; ++i)
+    {
+      if (sr->vtx.elastic.fuzzyk.png[i].cvnpart.pionid > maxVal &&
+          i != muonNum)
+      {
+        maxVal = sr->vtx.elastic.fuzzyk.png[i].cvnpart.pionid;
+        prongNum = i;
+      }
+    }
+    return prongNum;
+  }
+}
+
+/********************************** Get Pion Prong ID *********************************************************/
 const Cut kMyNuMuCCCoh([](const caf::SRProxy *sr) {
   if (sr->mc.nnu == 0)
     return false;
@@ -62,9 +114,6 @@ const Cut kTwo3DProngOne2DProng([](const caf::SRProxy *sr) {
   else
     return false;
 });
-
-
-
 
 //********************************** Replicating NuMuCC inclusive cuts ****************************************
 
@@ -153,6 +202,119 @@ const Cut kMuonIDCut([](const caf::SRProxy *sr) {
     return true;
   else
     return false;
+});
+
+//********************************** |t| Cut ************************************************************************
+
+const Cut ktCut([](const caf::SRProxy *sr) {
+  unsigned int muonNum = GetMuonProngId(sr);
+  unsigned int pionNum = GetPionProngId(sr);
+
+  if (sr->vtx.elastic.IsValid != true || sr->vtx.elastic.fuzzyk.npng == 0 || muonNum == pionNum || sr->vtx.elastic.fuzzyk.npng < 2)
+    return false;
+
+  else
+  {
+    double Emuon = double(sr->vtx.elastic.fuzzyk.png[muonNum].bpf.muon.energy);
+    double Pxmuon = double(sr->vtx.elastic.fuzzyk.png[muonNum].bpf.muon.momentum.x);
+    double Pymuon = double(sr->vtx.elastic.fuzzyk.png[muonNum].bpf.muon.momentum.y);
+    double Pzmuon = double(sr->vtx.elastic.fuzzyk.png[muonNum].bpf.muon.momentum.z);
+
+    double Epion = double(sr->vtx.elastic.fuzzyk.png[pionNum].bpf.pion.energy);
+    double Pxpion = double(sr->vtx.elastic.fuzzyk.png[pionNum].bpf.pion.momentum.x);
+    double Pypion = double(sr->vtx.elastic.fuzzyk.png[pionNum].bpf.pion.momentum.y);
+    double Pzpion = double(sr->vtx.elastic.fuzzyk.png[pionNum].bpf.pion.momentum.z);
+
+    double PtX = Pxmuon + Pxpion;
+    double PtY = Pymuon + Pypion;
+
+    double t = (((Emuon - Pzmuon) + (Epion - Pzpion)) * ((Emuon - Pzmuon) + (Epion - Pzpion)) + ((PtX * PtX) + (PtY * PtY)));
+    //std::cout << "|t| value: " << t << "\n";
+    //return t;
+    if (t < 0.1 || t == 0.1)
+      return true;
+    else
+      return false;
+  }
+});
+
+//********************************** |t| Cut Faliure Check ************************************************************************
+
+const Cut ktCutFaliure([](const caf::SRProxy *sr) {
+  unsigned int muonNum = GetMuonProngId(sr);
+  unsigned int pionNum = GetPionProngId(sr);
+
+  if (sr->vtx.elastic.IsValid != true || sr->vtx.elastic.fuzzyk.npng == 0 || muonNum == pionNum || sr->vtx.elastic.fuzzyk.npng < 2)
+    return false;
+
+  else
+  {
+    double Emuon = double(sr->vtx.elastic.fuzzyk.png[muonNum].bpf.muon.energy);
+    double Pxmuon = double(sr->vtx.elastic.fuzzyk.png[muonNum].bpf.muon.momentum.x);
+    double Pymuon = double(sr->vtx.elastic.fuzzyk.png[muonNum].bpf.muon.momentum.y);
+    double Pzmuon = double(sr->vtx.elastic.fuzzyk.png[muonNum].bpf.muon.momentum.z);
+
+    double Epion = double(sr->vtx.elastic.fuzzyk.png[pionNum].bpf.pion.energy);
+    double Pxpion = double(sr->vtx.elastic.fuzzyk.png[pionNum].bpf.pion.momentum.x);
+    double Pypion = double(sr->vtx.elastic.fuzzyk.png[pionNum].bpf.pion.momentum.y);
+    double Pzpion = double(sr->vtx.elastic.fuzzyk.png[pionNum].bpf.pion.momentum.z);
+
+    //double PtX = Pxmuon + Pxpion;
+    //double PtY = Pymuon + Pypion;
+
+    //double t = (((Emuon - Pzmuon) + (Epion - Pzpion)) * ((Emuon - Pzmuon) + (Epion - Pzpion)) + ((PtX * PtX) + (PtY * PtY)));
+    //std::cout << "|t| value: " << t << "\n";
+    //return t;
+    if (isnan(Emuon)  ||
+        isnan(Pxmuon) ||
+        isnan(Pymuon) ||
+        isnan(Pzmuon) ||
+        isnan(Epion)  ||
+        isnan(Pxpion) ||
+        isnan(Pypion) ||
+        isnan(Pzpion))
+      return true;
+    else
+      return false;
+  }
+});
+
+//********************************** Pion ID Cut *******************************************************************
+
+const Cut kPionIdCut([](const caf::SRProxy *sr) {
+  unsigned int muonNum = GetMuonProngId(sr);
+  if (muonNum == 10000 || sr->vtx.elastic.IsValid != true)
+    return false;
+  else
+  {
+    int prongNum = 0;
+    float maxVal = -1;
+    // if(sr->vtx.nelastic==0 || sr->vtx.elastic.fuzzyk.npng==0)
+    //   return -5.0;
+
+    for (unsigned int i = 0; i < sr->vtx.elastic.fuzzyk.npng; ++i)
+    {
+      if (sr->vtx.elastic.fuzzyk.png[i].cvnpart.pionid > maxVal &&
+          i != muonNum)
+      {
+        maxVal = sr->vtx.elastic.fuzzyk.png[i].cvnpart.pionid;
+        //std::cout<<maxVal<<"\n";
+        prongNum = i;
+      }
+    }
+    //if (sr->vtx.elastic.fuzzyk.png[prongNum].truth.pdg == 211)
+
+    //return double(maxVal);
+
+    if (maxVal > 0.9 || maxVal == 0.9)
+      return true;
+    else
+      return false;
+    //else
+    //return -10.0;
+  }
+  //if(sr->vtx.elastic.fuzzyk.png[prongNum].truth.pdg == 211)
+  //else if (! ())
 });
 
 //********************************** Replicating NuMuCC inclusive cuts ****************************************
