@@ -388,6 +388,13 @@ const Var kPionProngTrueKE([](const caf::SRProxy *sr) {
 	return ( pionKE - 0.13957 );
   }
 });
+/****************************************** Interaction Type ********************************************************************/
+const Var InteractionType([](const caf::SRProxy *sr) -> int {
+  if (sr->mc.nnu == 0)
+    return -100.0;
+  else
+    return (sr->mc.nu[0].mode);
+});
 
 
 

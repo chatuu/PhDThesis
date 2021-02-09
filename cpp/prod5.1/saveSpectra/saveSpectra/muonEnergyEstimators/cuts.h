@@ -26,6 +26,7 @@ unsigned int GetMuonProngId(const caf::SRProxy *sr)
   return prongNum;
 }
 
+
 /********************************** Get Muon Prong ID based on Single Particle CVN *****************************/
 
 unsigned int GetMuonProngIdNew(const caf::SRProxy *sr)
@@ -308,6 +309,31 @@ const Cut kMuonIDCut([](const caf::SRProxy *sr) {
   else
     return false;
 });
+
+//********************************** Selecting Suspicious Muons *****************************************************
+
+const Cut cuttingSuspiciousEvents([](const caf::SRProxy *sr){
+  unsigned int muonNum = GetMuonProngIdNew(sr);
+  unsigned int pionNum = GetPionProngId(sr);
+
+  if (sr->vtx.elastic.IsValid != true  || 
+	  sr->vtx.elastic.fuzzyk.npng == 0 || 
+	  muonNum == pionNum)
+    return false;
+  else
+  {
+    double muonLen          = double(sr->vtx.elastic.fuzzyk.png[muonNum].len);
+    double trueMuonKE       = double((sr->vtx.elastic.fuzzyk.png[muonNum].truth.p.E - 0.105658)); 
+    double calculatedMuonKE = (0.00206123*muonLen + 0.029106);
+    double diff             = std::abs((trueMuonKE - calculatedMuonKE));
+    //printf("True: %f Calculated: %f \n",trueMuonKE, calculatedMuonKE);
+    if (muonLen < 500 && diff > 0.5)
+      return true;
+    else
+      return false;
+  }
+});
+
 
 //********************************** NuMu CC MuonID Funtion *********************************************************
 const Var kBestMuonIDIndex([](const caf::SRProxy *sr) -> int
