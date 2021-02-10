@@ -536,6 +536,55 @@ const Cut kVertexECheckCut([](const caf::SRProxy *sr) {
   }
 });
 
+//********************************** All the NuMuCC Inc events without QE **************************************************************
+const Cut NuMuCCIntsNoQE([](const caf::SRProxy *sr) {
+  if (sr->mc.nnu == 0)
+    return false;
+  else
+    return (sr->mc.nu[0].iscc &&
+           (sr->mc.nu[0].pdg == 14) &&
+           (sr->mc.nu[0].pdgorig == 14) && 
+		   (sr->mc.nu[0].mode != caf::kQE));
+});
+//********************************** All the NuMuCC Inc events without QE & DIS **************************************************************
+const Cut NuMuCCIntsNoQENoDIS([](const caf::SRProxy *sr) {
+  if (sr->mc.nnu == 0)
+    return false;
+  else
+    return (sr->mc.nu[0].iscc &&
+           (sr->mc.nu[0].pdg == 14) &&
+           (sr->mc.nu[0].pdgorig == 14) && 
+		   (sr->mc.nu[0].mode != caf::kQE) &&
+		   (sr->mc.nu[0].mode != caf::kDIS));
+});
+//********************************** All the NuMuCC Inc events without QE & DIS & RES **************************************************************
+const Cut NuMuCCIntsNoQENoDISNoRES([](const caf::SRProxy *sr) {
+  if (sr->mc.nnu == 0)
+    return false;
+  else
+    return (sr->mc.nu[0].iscc &&
+           (sr->mc.nu[0].pdg == 14) &&
+           (sr->mc.nu[0].pdgorig == 14) && 
+		   (sr->mc.nu[0].mode != caf::kQE) &&
+		   (sr->mc.nu[0].mode != caf::kRes) &&
+		   (sr->mc.nu[0].mode != caf::kDIS));
+});
+//********************************** All the NuMuCC Inc events without QE & DIS & RES & MEC ********************************************************
+const Cut NuMuCCIntsNoQENoDISNoRESNoMEC([](const caf::SRProxy *sr) {
+  if (sr->mc.nnu == 0)
+    return false;
+  else
+    return (sr->mc.nu[0].iscc &&
+           (sr->mc.nu[0].pdg == 14) &&
+           (sr->mc.nu[0].pdgorig == 14) && 
+		   (sr->mc.nu[0].mode != caf::kQE) &&
+		   (sr->mc.nu[0].mode != caf::kRes) &&
+		   (sr->mc.nu[0].mode != caf::kMEC) &&
+		   (sr->mc.nu[0].mode != caf::kDIS));
+});
+
+
+
 
 // const Cut isPion([](const caf::SRProxy *sr){
 //   int muonNum=GetMuonProngId(sr);
