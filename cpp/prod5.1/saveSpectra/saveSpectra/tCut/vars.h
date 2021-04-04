@@ -187,6 +187,18 @@ const Var calE([](const caf::SRProxy *sr) {
   return double(sr->slc.calE);
 });
 
+//********************************** NuMu CC MuonID Cut *************************************************************
+const Var NuMuCCMuonID([](const caf::SRProxy *sr) {
+	int bestidx = kBestMuonIDIndex(sr);
+	if (bestidx < 0 || bestidx >= (int) sr->trk.kalman.ntracks)
+		return -100.0;
+  else
+  {
+	  double muonid = sr->trk.kalman.tracks[bestidx].muonid;
+	  return muonid;
+  }
+});
+
 /****************************************** Muon Track Number ********************************************************************/
 
 // unsigned int GetMuonTrackId(const caf::SRProxy *sr)
@@ -268,6 +280,199 @@ unsigned int GetPionProngId(const caf::SRProxy *sr)
 }
 */
 /*********************************************************************************************************************************/
+
+/******************************************* New Pion Energy Estimator ***************************************************/
+/*
+****************************************
+Minimizer is Linear / Migrad
+
+*/
+double PionEnergyEstimator(float calE){
+  //float p0                        =     0.249689; //  +/-   0.115564    
+  //float p1                        =     -1.13424; //  +/-   3.2228      
+  //float p2                        =     -2.50427; //  +/-   30.0966     
+  //float p3                        =      62.1546; //  +/-   131.021     
+  //float p4                        =     -217.197; //  +/-   310.894     
+  //float p5                        =      361.806; //  +/-   433.586     
+  //float p6                        =      -335.23; //  +/-   364.923     
+  //float p7                        =      176.795; //  +/-   182.094     
+  //float p8                        =      -49.726; //  +/-   49.5573     
+  //float p9                        =      5.80004; //  +/-   5.66286  
+
+  //float p0                        =     0.316376; //   +/-   0.039659    
+  //float p1                        =      -4.1791; //   +/-   1.9122      
+  //float p2                        =      33.1168; //   +/-   31.5049     
+  //float p3                        =     -114.635; //   +/-   242.257     
+  //float p4                        =      239.423; //   +/-   1014.62     
+  //float p5                        =      -319.64; //   +/-   2496.1      
+  //float p6                        =      286.998; //   +/-   3704.82     
+  //float p7                        =       -177.3; //   +/-   3260.21     
+  //float p8                        =      69.3147; //   +/-   1565.08     
+  //float p9                        =      -12.443; //   +/-   315.578    
+
+//  Minimizer is Linear / Migrad
+//Chi2                      =     0.132106
+//NDf                       =           95
+//float p0                        =     0.141479; //   +/-   0.0542481   
+//float p1                        =    -0.516404; //   +/-   0.513912    
+//float p2                        =       4.7073; //   +/-   1.5677      
+//float p3                        =     -5.52809; //   +/-   1.8926      
+//float p4                        =      2.18037; //   +/-   0.784279  
+
+//Minimizer is Linear / Migrad
+//Chi2                      =    0.0347367
+//NDf                       =           55
+float p0                        =    0.0416097;  // +/-   0.0830038   
+float p1                        =     0.831222;  // +/-   1.08518     
+float p2                        =    -0.283639;  // +/-   4.75972     
+float p3                        =      1.03192;  // +/-   8.48411     
+float p4                        =     -0.45108;  // +/-   5.27915
+
+
+	
+	return (
+    p0             + 
+		p1*calE        + 
+		p2*pow(calE,2) + 
+		p3*pow(calE,3) +
+		p4*pow(calE,4) );
+		//p5*pow(calE,5) +
+		//p6*pow(calE,6) +
+		//p7*pow(calE,7) +
+		//p8*pow(calE,8) +
+		//p9*pow(calE,9) );
+}
+
+/******************************************* New Muon Energy Estimator ***************************************************/
+double MuonEnergyEstimator(float muonLen){
+  double muonKE = (0.00206646*muonLen + 0.0201737);
+  return muonKE;
+} 
+/****************************************** Pion KE Resolution using pion energy Estimator ***************************************/
+const Var kPionKEResNew([](const caf::SRProxy *sr){
+
+  unsigned int muonNum = GetMuonProngIdNew(sr);
+  unsigned int pionNum = GetPionProngIdNew(sr);
+
+  if (sr->vtx.elastic.IsValid != true                      ||
+      sr->vtx.elastic.fuzzyk.png[muonNum].truth.pdg != 13  ||
+      sr->vtx.elastic.fuzzyk.png[pionNum].truth.pdg != 211 ||
+      muonNum == 10000                                     ||
+      pionNum == 10000                                     ||
+      muonNum == pionNum)
+    return -100.0;
+  else
+  {
+	  float calE = sr->vtx.elastic.fuzzyk.png[pionNum].calE;	   
+    if (calE <= 0.7 && calE >=0.1)
+	  {
+		  double truePionKE       = double((sr->vtx.elastic.fuzzyk.png[pionNum].truth.p.E - 0.139570)); 
+      double calculatedPionKE = PionEnergyEstimator(calE);
+      double res = (calculatedPionKE - truePionKE)/truePionKE;
+        //printf("True: %f Calculated: %f \n", truePionKE, calculatedPionKE);
+		  return res;
+	  }
+	  else
+		  return -100.0;
+  }
+});
+/****************************************** Pion KE using pion energy Estimator ***************************************/
+const Var kPionKEResBPFNew([](const caf::SRProxy *sr){
+
+  //unsigned int muonNum = GetMuonProngIdNew(sr);
+  unsigned int muonNum = GetMuonProngIdNew(sr);
+  unsigned int pionNum = GetPionProngIdNew(sr);
+
+  if (sr->vtx.elastic.IsValid != true                      ||
+      sr->vtx.elastic.fuzzyk.png[muonNum].truth.pdg != 13  ||
+      sr->vtx.elastic.fuzzyk.png[pionNum].truth.pdg != 211 ||
+      muonNum == 10000                                     ||
+      pionNum == 10000                                     ||
+      muonNum == pionNum)
+    return -100.0;
+  else
+  {
+	  float calE = sr->vtx.elastic.fuzzyk.png[pionNum].calE;	   
+    if (calE <= 0.7 && calE >=0.1)
+	  {
+		  double truePionKE       = double((sr->vtx.elastic.fuzzyk.png[pionNum].truth.p.E - 0.139570)); 
+      double calculatedPionKE = double((sr->vtx.elastic.fuzzyk.png[pionNum].bpf.pion.energy - 0.139570)); 
+      double res = (calculatedPionKE - truePionKE)/truePionKE;
+        //printf("True: %f Calculated: %f \n", truePionKE, calculatedPionKE);
+		  return res;
+	  }
+	  else
+		  return -100.0;
+  }
+});
+/****************************************** Pion KE Resolution using pion energy Estimator ***************************************/
+const Var kPionKEEstNew([](const caf::SRProxy *sr){
+
+  unsigned int pionNum = GetPionProngIdNew(sr);
+  unsigned int muonNum = GetMuonProngIdNew(sr);
+
+  if (sr->vtx.elastic.IsValid != true                      ||
+      sr->vtx.elastic.fuzzyk.png[muonNum].truth.pdg != 13  ||
+      sr->vtx.elastic.fuzzyk.png[pionNum].truth.pdg != 211 ||
+      muonNum == 10000                                     ||
+      pionNum == 10000                                     ||
+      muonNum == pionNum)
+      return -100.0;
+  else
+  {
+    float calE = sr->vtx.elastic.fuzzyk.png[pionNum].calE;	   
+    if (calE <= 0.7 && calE >=0.1)
+	  {
+      
+      double calculatedPionKE = PionEnergyEstimator(calE);
+      return calculatedPionKE;
+	  }
+	  else
+		  return -100.0;
+  }
+});
+// /****************************************** Pion KE Resolution using pion energy Estimator ***************************************/
+// const Var kTruePionKENew([](const caf::SRProxy *sr){
+
+//   //unsigned int muonNum = GetMuonProngIdNew(sr);
+//   int pionNum = -1;
+
+//   float pionID = -1.0;
+//   float calE = -1.0;
+
+//   if (sr->vtx.elastic.IsValid != true  || 
+// 	    sr->vtx.elastic.fuzzyk.npng == 0 )
+//     return -100.0;
+//   else
+//   {
+// 	  for (unsigned int i = 0; i < sr->vtx.elastic.fuzzyk.npng; ++i)
+// 	  {
+// 		  if (sr->vtx.elastic.fuzzyk.png[i].truth.pdg == 211 && 
+// 			    sr->vtx.elastic.fuzzyk.png[i].spprongcvnpart5label.pionid > pionID)
+// 		  {
+// 			  pionID  = sr->vtx.elastic.fuzzyk.png[i].spprongcvnpart5label.pionid;
+// 			  pionNum = i;
+// 		  }		
+// 	  }
+//     if (pionNum == -1)
+//       return -100.0;
+//     else
+//     {
+//       calE = sr->vtx.elastic.fuzzyk.png[pionNum].calE;	   
+//       if (calE <= 1.1 && calE >=0.1)
+// 	    {
+// 		    double truePionKE       = double((sr->vtx.elastic.fuzzyk.png[pionNum].truth.p.E - 0.139570)); 
+//       	//double calculatedPionKE = PionEnergyEstimator(calE);
+//         //double res = (calculatedPionKE - truePionKE)/truePionKE;
+//         //printf("True: %f Calculated: %f \n", truePionKE, calculatedPionKE);
+// 		    return truePionKE;
+// 	    }
+// 	    else
+// 		    return -100.0;
+//     }
+//   }
+// });
+
 /****************************************** muon Prong Length ********************************************************************/
 const Var kMuonProngLen([](const caf::SRProxy *sr) {
   unsigned int muonNum = GetMuonProngId(sr);
@@ -289,25 +494,97 @@ const Var kMuonProngLen([](const caf::SRProxy *sr) {
 /****************************************** muon Prong Length Based on Single Particle CVN ********************************************************************/
 const Var kMuonProngLenNew([](const caf::SRProxy *sr) {
   unsigned int muonNum = GetMuonProngIdNew(sr);
-  unsigned int pionNum = GetPionProngId(sr);
+  unsigned int pionNum = GetPionProngIdNew(sr);
 
   if (sr->vtx.elastic.IsValid != true  || 
-	  sr->vtx.elastic.fuzzyk.npng == 0 || 
+	    sr->vtx.elastic.fuzzyk.npng == 0 || 
+	    muonNum == pionNum)
+    return -100.0;
+
+  else
+  {
+	  if(sr->vtx.elastic.fuzzyk.png[muonNum].truth.pdg != 13 ) //Truth Check
+		  return -100.0;
+	  else
+	  {
+      double muonLen = double(sr->vtx.elastic.fuzzyk.png[muonNum].len);
+	    return muonLen;
+	  }
+  }
+});
+/****************************************** muon PID ********************************************************************/
+const Var muonPID([](const caf::SRProxy *sr) {
+  unsigned int muonNum = GetMuonProngIdNew(sr);
+  unsigned int pionNum = GetPionProngIdNew(sr);
+
+  if (sr->vtx.elastic.IsValid != true  || 
+	    sr->vtx.elastic.fuzzyk.npng == 0 || 
 	  muonNum == pionNum)
     return -100.0;
 
   else
   {
 
-	if(sr->vtx.elastic.fuzzyk.png[muonNum].truth.pdg != 13 )
-		return -100.0;
-	else
-	{
+    double muonPID = double(sr->vtx.elastic.fuzzyk.png[muonNum].truth.pdg);
 
-    double muonLen = double(sr->vtx.elastic.fuzzyk.png[muonNum].len);
+	return muonPID;
+  }
+});
 
-	return muonLen;
-	}
+/****************************************** pion PID ********************************************************************/
+const Var pionPID([](const caf::SRProxy *sr) {
+  unsigned int muonNum = GetMuonProngIdNew(sr);
+  unsigned int pionNum = GetPionProngIdNew(sr);
+
+  if (sr->vtx.elastic.IsValid != true  || 
+	    sr->vtx.elastic.fuzzyk.npng == 0 || 
+	  muonNum == pionNum)
+    return -100.0;
+
+  else
+  {
+
+    double pionPID = double(sr->vtx.elastic.fuzzyk.png[pionNum].truth.pdg);
+
+	return pionPID;
+  }
+});
+
+
+/****************************************** old pionID ********************************************************************/
+const Var oldPionID([](const caf::SRProxy *sr) {
+  unsigned int muonNum = GetMuonProngIdNew(sr);
+  unsigned int pionNum = GetPionProngIdNew(sr);
+
+  if (sr->vtx.elastic.IsValid != true  || 
+	    sr->vtx.elastic.fuzzyk.npng == 0 || 
+	  muonNum == pionNum)
+    return -100.0;
+
+  else
+  {
+
+    double pionID = double(sr->vtx.elastic.fuzzyk.png[pionNum].cvnpart.pionid);
+
+	return pionID;
+  }
+});
+
+/****************************************** new pionID ********************************************************************/
+const Var newPionID([](const caf::SRProxy *sr) {
+  unsigned int muonNum = GetMuonProngIdNew(sr);
+  unsigned int pionNum = GetPionProngIdNew(sr);
+
+  if (sr->vtx.elastic.IsValid != true  || 
+	    sr->vtx.elastic.fuzzyk.npng == 0 || 
+	  muonNum == pionNum)
+    return -100.0;
+
+  else
+  {
+
+    double pionID = double(sr->vtx.elastic.fuzzyk.png[pionNum].spprongcvnpart5label.pionid);
+	  return pionID;
   }
 });
 
@@ -329,6 +606,56 @@ const Var kPionProngLen([](const caf::SRProxy *sr) {
 	return pionLen;
   }
 });
+/****************************************** muon Prong True KE based on Sigle Particle CVN ******************************************/
+const Var kMuonProngTrueKENew([](const caf::SRProxy *sr) {
+  unsigned int muonNum = GetMuonProngIdNew(sr);
+  unsigned int pionNum = GetPionProngIdNew(sr);
+
+  
+
+  if (sr->vtx.elastic.IsValid != true                      ||
+      sr->vtx.elastic.fuzzyk.png[muonNum].truth.pdg != 13  ||
+      sr->vtx.elastic.fuzzyk.png[pionNum].truth.pdg != 211 ||
+      muonNum == 10000                                     ||
+      pionNum == 10000                                     ||
+      muonNum == pionNum)
+    return -100.0;
+  else
+  {
+    float muonLen = sr->vtx.elastic.fuzzyk.png[muonNum].len;
+    if (muonLen >= 90 && muonLen <= 1165)
+    {
+      double muonKE = double(sr->vtx.elastic.fuzzyk.png[muonNum].truth.p.E);
+	    return (muonKE - 0.105658);
+    }
+    else
+      return -100.0;
+  }
+});
+/****************************************** muon Prong Estimated KE ***********************************************************/
+const Var kMuonProngEstKE([](const caf::SRProxy *sr) {
+  unsigned int muonNum = GetMuonProngIdNew(sr);
+  unsigned int pionNum = GetPionProngIdNew(sr);
+
+  if (sr->vtx.elastic.IsValid != true                      ||
+      sr->vtx.elastic.fuzzyk.png[muonNum].truth.pdg != 13  ||
+      sr->vtx.elastic.fuzzyk.png[pionNum].truth.pdg != 211 ||
+      muonNum == 10000                                     ||
+      pionNum == 10000                                     ||
+      muonNum == pionNum)
+    return -100.0;
+  else
+  {
+    float muonLen = sr->vtx.elastic.fuzzyk.png[muonNum].len;
+    if (muonLen >= 90 && muonLen <= 1165)
+    {
+      double calculatedMuonKE = MuonEnergyEstimator(muonLen);
+	    return calculatedMuonKE;
+    }
+    else
+      return -100.0;
+  }
+});
 /****************************************** muon Prong True KE ********************************************************************/
 const Var kMuonProngTrueKE([](const caf::SRProxy *sr) {
   unsigned int muonNum = GetMuonProngId(sr);
@@ -347,221 +674,60 @@ const Var kMuonProngTrueKE([](const caf::SRProxy *sr) {
 	return (muonKE - 0.105658);
   }
 });
-/****************************************** muon Prong True KE based on Sigle Particle CVN ******************************************/
-const Var kMuonProngTrueKENew([](const caf::SRProxy *sr) {
-  unsigned int muonNum = GetMuonProngIdNew(sr);
-  unsigned int pionNum = GetPionProngId(sr);
+/****************************************** Muon E Resolution using Muon energy Estimator ********************************************************************/
+const Var kMuonEResNew([](const caf::SRProxy *sr){
 
-  if (sr->vtx.elastic.IsValid != true  || 
-	    sr->vtx.elastic.fuzzyk.npng == 0   || 
-      sr->vtx.elastic.fuzzyk.png[muonNum].truth.pdg != 13 ||
-	  muonNum == pionNum)
+  unsigned int muonNum = GetMuonProngIdNew(sr);
+  unsigned int pionNum = GetPionProngIdNew(sr);
+
+  if (sr->vtx.elastic.IsValid != true                      ||
+      sr->vtx.elastic.fuzzyk.png[muonNum].truth.pdg != 13  ||
+      sr->vtx.elastic.fuzzyk.png[pionNum].truth.pdg != 211 ||
+      muonNum == 10000                                     ||
+      pionNum == 10000                                     ||
+      muonNum == pionNum)
     return -100.0;
   else
   {
-    double muonKE = double(sr->vtx.elastic.fuzzyk.png[muonNum].truth.p.E);
-	  return (muonKE - 0.105658);
+    float muonLen = sr->vtx.elastic.fuzzyk.png[muonNum].len;
+    if (muonLen >= 90 && muonLen <= 1165)
+    {
+      double calculatedMuonKE = MuonEnergyEstimator(muonLen);
+      double trueMuonKE       = double((sr->vtx.elastic.fuzzyk.png[muonNum].truth.p.E - 0.105658)); 
+      double res = (calculatedMuonKE - trueMuonKE)/trueMuonKE;
+	    return res;
+    }
+    else
+      return -100.0;
   }
 });
-/****************************************** Estimated muon Prong True KE based on Sigle Particle CVN ******************************/
-const Var kMuonProngEstKE([](const caf::SRProxy *sr) {
-  unsigned int muonNum = GetMuonProngIdNew(sr);
-  unsigned int pionNum = GetPionProngId(sr);
+/****************************************** Muon E Resolution using BPF ********************************************************************/
+const Var kMuonEResBPFNew([](const caf::SRProxy *sr){
 
-  if (sr->vtx.elastic.IsValid != true  || 
-	    sr->vtx.elastic.fuzzyk.npng == 0   || 
-      sr->vtx.elastic.fuzzyk.png[muonNum].truth.pdg != 13 ||
-	  muonNum == pionNum)
+  unsigned int muonNum = GetMuonProngIdNew(sr);
+  unsigned int pionNum = GetPionProngIdNew(sr);
+
+  if (sr->vtx.elastic.IsValid != true                      ||
+      sr->vtx.elastic.fuzzyk.png[muonNum].truth.pdg != 13  ||
+      sr->vtx.elastic.fuzzyk.png[pionNum].truth.pdg != 211 ||
+      muonNum == 10000                                     ||
+      pionNum == 10000                                     ||
+      muonNum == pionNum)
     return -100.0;
   else
   {
-    double muonLen          = double(sr->vtx.elastic.fuzzyk.png[muonNum].len);
-    double calculatedMuonKE = (0.00206123*muonLen + 0.029106);
-	  return calculatedMuonKE;
+    float muonLen = sr->vtx.elastic.fuzzyk.png[muonNum].len;
+    if (muonLen >= 90 && muonLen <= 1165)
+    {
+      double calculatedMuonKE = double((sr->vtx.elastic.fuzzyk.png[muonNum].bpf.muon.energy - 0.105658)); ;
+      double trueMuonKE       = double((sr->vtx.elastic.fuzzyk.png[muonNum].bpf.muon.truth.p.E - 0.105658)); 
+      double res = (calculatedMuonKE - trueMuonKE)/trueMuonKE;
+	    return res;
+    }
+    else
+      return -100.0;
   }
 });
-
-/****************************************** Calculated muon Pl using muon energy estimator ******************************/
-const Var kMuonPlCalculated([](const caf::SRProxy *sr) {
-	unsigned int muonNum = GetMuonProngIdNew(sr);
-  	unsigned int pionNum = GetPionProngId(sr);
-
-  	if (sr->vtx.elastic.IsValid != true    || 
-	  	sr->vtx.elastic.fuzzyk.npng == 0   || 
-      	sr->vtx.elastic.fuzzyk.png[muonNum].truth.pdg != 13 ||
-	  	muonNum == pionNum)
-    	return -100.0;
-
-  	else
-  	{	
-		double muonLen = double(sr->vtx.elastic.fuzzyk.png[muonNum].len);
-	    double muonKE  = (0.00206123*muonLen + 0.029106);
-
-		double Pmuon   = sqrt( muonKE*(muonKE+ ( 2*0.105658 )) );
-  		TVector3 muonDir(0, 0, 0);
-  		TVector3 beamdir = NuMIBeamDirection(caf::kNEARDET);
-  		muonDir.SetXYZ(sr->vtx.elastic.fuzzyk.png[muonNum].dir.x,
-                   	   sr->vtx.elastic.fuzzyk.png[muonNum].dir.y,
-                   	   sr->vtx.elastic.fuzzyk.png[muonNum].dir.z);
-
-    	double CosThetaMuon = double(muonDir.Unit().Dot(beamdir));
-    	//double SinThetaMuon = sqrt((1 - pow(CosThetaMuon, 2)));
-
-    	double PlMuon = Pmuon * CosThetaMuon;
-    	//double PtMuon = Pmuon * SinThetaMuon;
-
-  		return PlMuon;
-  	}
-});
-/****************************************** Calculated muon Pt using muon energy estimator ******************************/
-const Var kMuonPtCalculated([](const caf::SRProxy *sr) {
-	unsigned int muonNum = GetMuonProngIdNew(sr);
-  	unsigned int pionNum = GetPionProngId(sr);
-
-  	if (sr->vtx.elastic.IsValid != true    || 
-	  	sr->vtx.elastic.fuzzyk.npng == 0   || 
-      	sr->vtx.elastic.fuzzyk.png[muonNum].truth.pdg != 13 ||
-	  	muonNum == pionNum)
-    	return -100.0;
-
-  	else
-  	{	
-		double muonLen = double(sr->vtx.elastic.fuzzyk.png[muonNum].len);
-	    double muonKE  = (0.00206123*muonLen + 0.029106);
-
-		double Pmuon   = sqrt( muonKE*(muonKE+ ( 2*0.105658 )) );
-  		TVector3 muonDir(0, 0, 0);
-  		TVector3 beamdir = NuMIBeamDirection(caf::kNEARDET);
-  		muonDir.SetXYZ(sr->vtx.elastic.fuzzyk.png[muonNum].dir.x,
-                   	   sr->vtx.elastic.fuzzyk.png[muonNum].dir.y,
-                   	   sr->vtx.elastic.fuzzyk.png[muonNum].dir.z);
-
-    	double CosThetaMuon = double(muonDir.Unit().Dot(beamdir));
-    	double SinThetaMuon = sqrt((1 - pow(CosThetaMuon, 2)));
-
-    	//double PlMuon = Pmuon * CosThetaMuon;
-    	double PtMuon = Pmuon * SinThetaMuon;
-
-  		return PtMuon;
-  	}
-});
-/****************************************** True muon Pl  *****************************************************************/
-const Var kTrueMuonPl([](const caf::SRProxy *sr) {
-	unsigned int muonNum = GetMuonProngIdNew(sr);
-  	unsigned int pionNum = GetPionProngId(sr);
-
-  	if (sr->vtx.elastic.IsValid != true    || 
-	  	sr->vtx.elastic.fuzzyk.npng == 0   || 
-      	sr->vtx.elastic.fuzzyk.png[muonNum].truth.pdg != 13 ||
-	  	muonNum == pionNum)
-    	return -100.0;
-
-  	else
-  	{	
-  		return double(sr->vtx.elastic.fuzzyk.png[muonNum].truth.p.pz);
-  	}
-});
-/****************************************** True muon Pt *****************************************************************/
-const Var kTrueMuonPt([](const caf::SRProxy *sr) {
-	unsigned int muonNum = GetMuonProngIdNew(sr);
-  	unsigned int pionNum = GetPionProngId(sr);
-
-  	if (sr->vtx.elastic.IsValid != true    || 
-	  	sr->vtx.elastic.fuzzyk.npng == 0   || 
-      	sr->vtx.elastic.fuzzyk.png[muonNum].truth.pdg != 13 ||
-	  	muonNum == pionNum)
-    	return -100.0;
-
-  	else
-  	{	
-		double muonPx = double(sr->vtx.elastic.fuzzyk.png[muonNum].truth.p.px);
-	    double muonPy = double(sr->vtx.elastic.fuzzyk.png[muonNum].truth.p.py);
-
-		double PtMuon     = sqrt( pow(muonPx, 2) + pow(muonPy, 2) );
-  		return PtMuon;
-  	}
-});
-/***************************** New Pl Resolution  ************************************************************************/
-const Var kMuonPlResolution([](const caf::SRProxy *sr) {
-	unsigned int muonNum = GetMuonProngIdNew(sr);
-  	unsigned int pionNum = GetPionProngId(sr);
-
-  	if (sr->vtx.elastic.IsValid != true    || 
-	  	sr->vtx.elastic.fuzzyk.npng == 0   || 
-      	sr->vtx.elastic.fuzzyk.png[muonNum].truth.pdg != 13 ||
-	  	muonNum == pionNum)
-    	return -100.0;
-
-  	else
-  	{	
-		double muonLen = double(sr->vtx.elastic.fuzzyk.png[muonNum].len);
-	    double muonKE  = (0.00206123*muonLen + 0.029106);
-
-		double Pmuon   = sqrt( muonKE*(muonKE+ ( 2*0.105658 )) );
-  		TVector3 muonDir(0, 0, 0);
-  		TVector3 beamdir = NuMIBeamDirection(caf::kNEARDET);
-  		muonDir.SetXYZ(sr->vtx.elastic.fuzzyk.png[muonNum].dir.x,
-                   	   sr->vtx.elastic.fuzzyk.png[muonNum].dir.y,
-                   	   sr->vtx.elastic.fuzzyk.png[muonNum].dir.z);
-
-    	double CosThetaMuon = double(muonDir.Unit().Dot(beamdir));
-    	//double SinThetaMuon = sqrt((1 - pow(CosThetaMuon, 2)));
-
-    	double PlMuon = Pmuon * CosThetaMuon;
-		double truePlMuon = double(sr->vtx.elastic.fuzzyk.png[muonNum].truth.p.pz);
-    	//double PtMuon = Pmuon * SinThetaMuon;
-		if (truePlMuon == 0)
-			return 0.0;
-		else
-			{
-			double res = (PlMuon - truePlMuon)/truePlMuon;
-  			return res;
-			}  	
-	}
-});
-/************************** New Pt Resolution ***********************************************************************/
-const Var kMuonPtResolution([](const caf::SRProxy *sr) {
-	unsigned int muonNum = GetMuonProngIdNew(sr);
-  	unsigned int pionNum = GetPionProngId(sr);
-
-  	if (sr->vtx.elastic.IsValid != true    || 
-	  	sr->vtx.elastic.fuzzyk.npng == 0   || 
-      	sr->vtx.elastic.fuzzyk.png[muonNum].truth.pdg != 13 ||
-	  	muonNum == pionNum)
-    	return -100.0;
-
-  	else
-  	{	
-		double muonLen = double(sr->vtx.elastic.fuzzyk.png[muonNum].len);
-	    double muonKE  = (0.00206123*muonLen + 0.029106);
-
-		double Pmuon   = sqrt( muonKE*(muonKE+ ( 2*0.105658 )) );
-  		TVector3 muonDir(0, 0, 0);
-  		TVector3 beamdir = NuMIBeamDirection(caf::kNEARDET);
-  		muonDir.SetXYZ(sr->vtx.elastic.fuzzyk.png[muonNum].dir.x,
-                   	   sr->vtx.elastic.fuzzyk.png[muonNum].dir.y,
-                   	   sr->vtx.elastic.fuzzyk.png[muonNum].dir.z);
-
-    	double CosThetaMuon = double(muonDir.Unit().Dot(beamdir));
-    	double SinThetaMuon = sqrt((1 - pow(CosThetaMuon, 2)));
-
-    	//double PlMuon = Pmuon * CosThetaMuon;
-    	double PtMuon = Pmuon * SinThetaMuon;
-		double muonPx = double(sr->vtx.elastic.fuzzyk.png[muonNum].truth.p.px);
-	    double muonPy = double(sr->vtx.elastic.fuzzyk.png[muonNum].truth.p.py);
-
-		double truePtMuon     = sqrt( pow(muonPx, 2) + pow(muonPy, 2) );
-		
-		if (truePtMuon == 0)
-			return 0.0;
-		else
-		{
-			double res = ( PtMuon - truePtMuon )/truePtMuon;
-			return res; 
-		}
-  	}
-});
-
 /****************************************** pion Prong Length ********************************************************************/
 const Var kPionProngTrueKE([](const caf::SRProxy *sr) {
   unsigned int muonNum = GetMuonProngId(sr);
@@ -579,13 +745,6 @@ const Var kPionProngTrueKE([](const caf::SRProxy *sr) {
 
 	return ( pionKE - 0.13957 );
   }
-});
-/****************************************** Interaction Type ********************************************************************/
-const Var InteractionType([](const caf::SRProxy *sr) -> int {
-  if (sr->mc.nnu == 0)
-    return -100.0;
-  else
-    return (sr->mc.nu[0].mode);
 });
 
 
@@ -879,87 +1038,9 @@ const Var kMuonERes([](const caf::SRProxy *sr){
   }
  
 });
-/****************************************** Muon E Resolution using Muon energy Estimator ********************************************************************/
-const Var kMuonEResNew([](const caf::SRProxy *sr){
 
-  unsigned int muonNum = GetMuonProngIdNew(sr);
-  unsigned int pionNum = GetPionProngIdNew(sr);
 
-  if (sr->vtx.elastic.IsValid != true  || 
-	    sr->vtx.elastic.fuzzyk.npng == 0 ||
-      sr->vtx.elastic.fuzzyk.png[muonNum].truth.pdg != 13 ||
-      sr->vtx.elastic.fuzzyk.png[muonNum].len <40 || 
-      sr->vtx.elastic.fuzzyk.png[muonNum].len >1170 || 
-      muonNum == pionNum)
-    return -100.0;
-  else
-  {
-    double muonLen          = double(sr->vtx.elastic.fuzzyk.png[muonNum].len);
-    double trueMuonKE       = double((sr->vtx.elastic.fuzzyk.png[muonNum].truth.p.E - 0.105658)); 
-    double calculatedMuonKE = (0.00206123*muonLen + 0.029106);
 
-      if ( trueMuonKE == 0 )
-        return 0.0;
-      else
-        {
-          double res = (calculatedMuonKE - trueMuonKE)/trueMuonKE;
-          return res;
-        }
-  }
-});
-
-/****************************************** Muon E Resolution using Muon energy Estimator ********************************************************************/
-const Var kMuonEResNewNoLenLimit([](const caf::SRProxy *sr){
-
-  unsigned int muonNum = GetMuonProngIdNew(sr);
-  unsigned int pionNum = GetPionProngIdNew(sr);
-
-  if (sr->vtx.elastic.IsValid != true  || 
-	    sr->vtx.elastic.fuzzyk.npng == 0 ||
-      sr->vtx.elastic.fuzzyk.png[muonNum].truth.pdg != 13 ||
-      muonNum == pionNum)
-    return -100.0;
-  else
-  {
-    double muonLen          = double(sr->vtx.elastic.fuzzyk.png[muonNum].len);
-    double trueMuonKE       = double((sr->vtx.elastic.fuzzyk.png[muonNum].truth.p.E - 0.105658)); 
-    double calculatedMuonKE = (0.00206123*muonLen + 0.029106);
-
-      if ( trueMuonKE == 0 )
-        return 0.0;
-      else
-        {
-          double res = (calculatedMuonKE - trueMuonKE)/trueMuonKE;
-          return res;
-        }
-  }
-});
-/****************************************** Muon E Resolution using BPF ********************************************************************/
-const Var kMuonEResBPFNew([](const caf::SRProxy *sr){
-
-  unsigned int muonNum = GetMuonProngIdNew(sr);
-  unsigned int pionNum = GetPionProngIdNew(sr);
-
-  if (sr->vtx.elastic.IsValid != true  || 
-	    sr->vtx.elastic.fuzzyk.npng == 0 ||
-      sr->vtx.elastic.fuzzyk.png[muonNum].truth.pdg != 13 ||
-      muonNum == pionNum)
-    return -100.0;
-  else
-  {
-    double muonKEBPF        = double((sr->vtx.elastic.fuzzyk.png[muonNum].bpf.muon.energy - 0.105658));
-    double trueMuonKE       = double((sr->vtx.elastic.fuzzyk.png[muonNum].bpf.muon.truth.p.E - 0.105658)); 
-    //double calculatedMuonKE = (0.00206123*muonLen + 0.029106);
-
-      if ( trueMuonKE == 0 )
-        return 0.0;
-      else
-        {
-          double res = (muonKEBPF - trueMuonKE)/trueMuonKE;
-          return res;
-        }
-  }
-});
 
 /****************************************** Pion E Resolution using BPF ********************************************************************/
 const Var kPionERes([](const caf::SRProxy *sr){
@@ -981,11 +1062,67 @@ const Var kPionERes([](const caf::SRProxy *sr){
   }
  
 });
+/****************************************** truth |t| using Truth Branch *******************************************************/
+const Var kTruet([](const caf::SRProxy *sr) -> double
+{
+  if (sr->vtx.elastic.IsValid != true)
+    return -100.0;
+  else
+  {
+    TLorentzVector numu = GetNeutrinoFourMomenta(sr);
+    TLorentzVector muon = GetMuonFourMomenta(sr);
+    TLorentzVector pion = GetPionFourMomenta(sr);
 
+    TLorentzVector t    = numu - muon - pion;
+    double modt = abs(t*t);
+    return modt;
+  }
+});
+/****************************************** Reconstructed true |t| *******************************************************/
+const Var kRecoTruet([](const caf::SRProxy *sr) -> double
+{
+  if (sr->vtx.elastic.IsValid != true)
+    return -100.0;
+  else
+  {
+    //TLorentzVector numu = GetNeutrinoFourMomenta(sr);
+    TLorentzVector muon = GetMuonFourMomenta(sr);
+    TLorentzVector pion = GetPionFourMomenta(sr);
 
+    double Ptx = (  muon.Px() + pion.Px() );
+    double Pty = (  muon.Py() + pion.Py() );
+    double Ptz = (  muon.Pz() + pion.Pz() );
 
+    TLorentzVector numu;
+    numu.SetPxPyPzE(Ptx, Pty, Ptz, sqrt(pow(Ptx,2)+pow(Pty,2)+pow(Ptz,2)));
 
+    TLorentzVector t    = numu - muon - pion;
 
+    double modt = abs(t*t);
+    return modt;
+  }
+});
+
+/****************************************** Reconstructed true |t| *******************************************************/
+const Var kRecoTruet2([](const caf::SRProxy *sr) -> double
+{
+  if (sr->vtx.elastic.IsValid != true)
+    return -100.0;
+  else
+  {
+    //TLorentzVector numu = GetNeutrinoFourMomenta(sr);
+    TLorentzVector muon = GetMuonFourMomenta(sr);
+    TLorentzVector pion = GetPionFourMomenta(sr);
+
+    double PtX = (  muon.Px() + pion.Px() );
+    double PtY = (  muon.Py() + pion.Py() );
+    double PtZ = (  muon.Pz() + pion.Pz() );
+
+    double t = (pow(((muon.E() - muon.Pz()) + (pion.E() - pion.Pz())),2) + pow(PtX,2) + pow(PtY,2));
+
+    return t;
+  }
+});
 
 /****************************************** Reconstructed |t| ********************************************************************/
 
@@ -1014,6 +1151,173 @@ const Var kRecot([](const caf::SRProxy *sr) {
     double t = (((Emuon - Pzmuon) + (Epion - Pzpion)) * ((Emuon - Pzmuon) + (Epion - Pzpion)) + ((PtX * PtX) + (PtY * PtY)));
     //std::cout << "\n reconstructed values: " << " MuonE: " << Emuon << " muonPx: "  << Pxmuon << " muonPy: "  << Pymuon << " muonPz: " << Pzmuon << " PionE: " << Epion << " pionPx: " << Pxpion << " pionPy: " << Pypion << " pionPz: " << Pzpion << "\n";
     return t;
+  }
+});
+
+/****************************************** Estimated |t| ********************************************************************/
+const Var kEstt([](const caf::SRProxy *sr) {
+  unsigned int muonNum = GetMuonProngIdNew(sr);
+  unsigned int pionNum = GetPionProngIdNew(sr);
+
+  if (sr->vtx.elastic.IsValid != true                      ||
+      //sr->vtx.elastic.fuzzyk.png[muonNum].truth.pdg != 13  || 
+      //sr->vtx.elastic.fuzzyk.png[pionNum].truth.pdg != 211 || 
+      muonNum == 10000 ||
+      muonNum == 10000 ||
+      muonNum == pionNum )
+    return -100.0;
+
+  else
+  {
+    float muonLen  = sr->vtx.elastic.fuzzyk.png[muonNum].len;
+    float pionCalE = sr->vtx.elastic.fuzzyk.png[pionNum].calE; 
+
+    if (pionCalE >= 0.1 && pionCalE <= 0.7 && muonLen >= 90 && muonLen <= 1165)
+    {
+      double muonKE   = MuonEnergyEstimator(muonLen); //+ 0.105658);
+      double pionKE   = PionEnergyEstimator(pionCalE); //+ 0.13957);
+
+      double muonE   = (muonKE + 0.105658);
+      double pionE   = (pionKE + 0.13957);
+
+      double Pmuon   = sqrt( muonKE*(muonKE+ ( 2*0.105658 )) );
+      TVector3 muonDir(0, 0, 0);
+      TVector3 beamdir = NuMIBeamDirection(caf::kNEARDET);
+      muonDir.SetXYZ(sr->vtx.elastic.fuzzyk.png[muonNum].dir.x,
+                     sr->vtx.elastic.fuzzyk.png[muonNum].dir.y,
+                     sr->vtx.elastic.fuzzyk.png[muonNum].dir.z);
+
+      TVector3 VecMuon = muonDir.Unit()*Pmuon;
+
+      //double CosThetaMuon = double(muonDir.Unit().Dot(beamdir));
+      //double sin = double(muonDir.Unit().Angle(beamdir));
+      
+      //double SinThetaMuon = sqrt((1 - pow(CosThetaMuon, 2)));
+
+      //double PlMuon = Pmuon * CosThetaMuon;
+      //double PtMuon = Pmuon * SinThetaMuon;
+
+      double Ppion   = sqrt( pionKE*(pionKE+ ( 2*0.13957 )) );
+      TVector3 pionDir(0, 0, 0);
+      pionDir.SetXYZ(sr->vtx.elastic.fuzzyk.png[pionNum].dir.x,
+                    sr->vtx.elastic.fuzzyk.png[pionNum].dir.y,
+                    sr->vtx.elastic.fuzzyk.png[pionNum].dir.z);
+
+      //double CosThetaPion = double(pionDir.Unit().Dot(beamdir));
+      //double PionAngle = double(pionDir.Unit().Angle(beamdir));
+      //double SinThetaPion = sqrt((1 - pow(CosThetaPion, 2)));
+
+      /*printf("\nMuon componenets: (%f,%f,%f) Pion components: (%f,%f,%f)", double(sr->vtx.elastic.fuzzyk.png[muonNum].dir.x),
+                                                                           double(sr->vtx.elastic.fuzzyk.png[muonNum].dir.y),
+                                                                           double(sr->vtx.elastic.fuzzyk.png[muonNum].dir.z),
+                                                                           double(sr->vtx.elastic.fuzzyk.png[pionNum].dir.x),
+                                                                           double(sr->vtx.elastic.fuzzyk.png[pionNum].dir.y),
+                                                                           double(sr->vtx.elastic.fuzzyk.png[pionNum].dir.z)) ;
+      */
+      /*printf("\n Beam: (%f %f %f)",beamdir.X(),
+                                   beamdir.Y(),
+                                   beamdir.Z());
+      */
+      TVector3 VecPion = pionDir.Unit()*Ppion;
+
+      TLorentzVector numu;
+      numu.SetPxPyPzE(VecMuon.Px()+VecPion.Px(),
+                      VecMuon.Py()+VecPion.Py(),
+                      VecMuon.Pz()+VecPion.Pz(),
+                      sqrt(pow((VecMuon.Px()+VecPion.Px()),2) +
+                           pow((VecMuon.Py()+VecPion.Py()),2) +
+                           pow((VecMuon.Pz()+VecPion.Pz()),2)));
+
+      TLorentzVector muon(VecMuon,muonE);
+
+      TLorentzVector pion(VecPion,pionE);
+
+
+      TLorentzVector t    = numu - muon - pion;
+
+
+
+      double modt = abs(t*t);
+      return modt;
+    }
+    else
+      return -100.0;
+  }
+});
+
+/****************************************** Estimated |t| ********************************************************************/
+const Var kEstt2([](const caf::SRProxy *sr) {
+  unsigned int muonNum = GetMuonProngIdNew(sr);
+  unsigned int pionNum = GetPionProngIdNew(sr);
+
+  if (sr->vtx.elastic.IsValid != true                      ||
+      //sr->vtx.elastic.fuzzyk.png[muonNum].truth.pdg != 13  || 
+      //sr->vtx.elastic.fuzzyk.png[pionNum].truth.pdg != 211 || 
+      muonNum == pionNum )
+    return -100.0;
+
+  else
+  {
+    float muonLen  = sr->vtx.elastic.fuzzyk.png[muonNum].len;
+    float pionCalE = sr->vtx.elastic.fuzzyk.png[pionNum].calE; 
+
+    if (pionCalE > 0.1 && pionCalE < 1.1)
+    {
+      double muonKE   = MuonEnergyEstimator(muonLen); //+ 0.105658);
+      double pionKE   = PionEnergyEstimator(pionCalE); //+ 0.13957);
+
+      double muonE   = (muonKE + 0.105658);
+      double pionE   = (pionKE + 0.13957);
+
+      double Pmuon   = sqrt( muonKE*(muonKE+ ( 2*0.105658 )) );
+      TVector3 muonDir(0, 0, 0);
+      TVector3 beamdir = NuMIBeamDirection(caf::kNEARDET);
+      muonDir.SetXYZ(sr->vtx.elastic.fuzzyk.png[muonNum].dir.x,
+                     sr->vtx.elastic.fuzzyk.png[muonNum].dir.y,
+                     sr->vtx.elastic.fuzzyk.png[muonNum].dir.z);
+
+      TVector3 VecMuon = muonDir.Unit()*Pmuon;
+
+      //double CosThetaMuon = double(muonDir.Unit().Dot(beamdir));
+      //double sin = double(muonDir.Unit().Angle(beamdir));
+      
+      //double SinThetaMuon = sqrt((1 - pow(CosThetaMuon, 2)));
+
+      //double PlMuon = Pmuon * CosThetaMuon;
+      //double PtMuon = Pmuon * SinThetaMuon;
+
+      double Ppion   = sqrt( pionKE*(pionKE+ ( 2*0.13957 )) );
+      TVector3 pionDir(0, 0, 0);
+      pionDir.SetXYZ(sr->vtx.elastic.fuzzyk.png[pionNum].dir.x,
+                    sr->vtx.elastic.fuzzyk.png[pionNum].dir.y,
+                    sr->vtx.elastic.fuzzyk.png[pionNum].dir.z);
+
+      //double CosThetaPion = double(pionDir.Unit().Dot(beamdir));
+      //double PionAngle = double(pionDir.Unit().Angle(beamdir));
+      //double SinThetaPion = sqrt((1 - pow(CosThetaPion, 2)));
+
+      /*printf("\nMuon componenets: (%f,%f,%f) Pion components: (%f,%f,%f)", double(sr->vtx.elastic.fuzzyk.png[muonNum].dir.x),
+                                                                           double(sr->vtx.elastic.fuzzyk.png[muonNum].dir.y),
+                                                                           double(sr->vtx.elastic.fuzzyk.png[muonNum].dir.z),
+                                                                           double(sr->vtx.elastic.fuzzyk.png[pionNum].dir.x),
+                                                                           double(sr->vtx.elastic.fuzzyk.png[pionNum].dir.y),
+                                                                           double(sr->vtx.elastic.fuzzyk.png[pionNum].dir.z)) ;
+      */
+      /*printf("\n Beam: (%f %f %f)",beamdir.X(),
+                                   beamdir.Y(),
+                                   beamdir.Z());
+      */
+      TVector3 VecPion = pionDir.Unit()*Ppion;
+      double PtX = VecMuon.X() + VecPion.X();
+      double PtY = VecMuon.Y() + VecPion.Y();
+
+      //double t = (pow(((muonE - PlMuon) + (pionE - PlPion)),2) + pow((PtMuon + PtPion),2));
+      double t = (pow(((muonE - VecMuon.Z()) + (pionE - VecPion.Z())),2) + pow(PtX,2) + pow(PtY,2));
+      //std::cout << "\n reconstructed values: " << " MuonE: " << Emuon << " muonPx: "  << Pxmuon << " muonPy: "  << Pymuon << " muonPz: " << Pzmuon << " PionE: " << Epion << " pionPx: " << Pxpion << " pionPy: " << Pypion << " pionPz: " << Pzpion << "\n";
+      return t;
+    }
+    else
+      return -100.0;
   }
 });
 
@@ -1203,7 +1507,64 @@ const Var kRecoKEMuon([](const caf::SRProxy *sr) {
     return (Emuon - 0.105658);
   }
 });
+/****************************************** True Pion KE for pion energy estimator ***************************************/
+const Var kTruePionKENew([](const caf::SRProxy *sr){
 
+  unsigned int pionNum = GetPionProngIdNew(sr);
+  unsigned int muonNum = GetMuonProngIdNew(sr);
+
+
+  if (sr->vtx.elastic.IsValid != true                      ||
+      sr->vtx.elastic.fuzzyk.png[muonNum].truth.pdg != 13  ||
+      sr->vtx.elastic.fuzzyk.png[pionNum].truth.pdg != 211 ||
+      muonNum == 10000                                     ||
+      pionNum == 10000                                     ||
+      muonNum == pionNum)
+    return -100.0;
+  else
+  {
+    float calE = sr->vtx.elastic.fuzzyk.png[pionNum].calE;	   
+    if (calE <= 0.7 && calE >=0.1)
+	  {
+      double truePionKE       = double((sr->vtx.elastic.fuzzyk.png[pionNum].truth.p.E - 0.139570));  
+      return truePionKE;
+	  }
+	  else
+		  return -100.0;
+  }
+});
+/****************************************** CalE made for pion energy Estimator ***************************************/
+const Var kPionCalENew([](const caf::SRProxy *sr){
+
+  //unsigned int muonNum = GetMuonProngIdNew(sr);
+  int pionNum = -1;
+
+  float pionID = -1.0;
+  double calE = -1.0;
+
+  if (sr->vtx.elastic.IsValid != true  || 
+	    sr->vtx.elastic.fuzzyk.npng == 0 )
+    return -100.0;
+  else
+  {
+	  for (unsigned int i = 0; i < sr->vtx.elastic.fuzzyk.npng; ++i)
+	  {
+		  if (sr->vtx.elastic.fuzzyk.png[i].truth.pdg == 211 && 
+			    sr->vtx.elastic.fuzzyk.png[i].spprongcvnpart5label.pionid > pionID)
+		  {
+			  pionID  = sr->vtx.elastic.fuzzyk.png[i].spprongcvnpart5label.pionid;
+			  pionNum = i;
+		  }		
+	  }
+    if (pionNum == -1)
+      return -100.0;
+    else
+    {
+      calE = double(sr->vtx.elastic.fuzzyk.png[pionNum].calE);	   
+      return calE;
+    }
+  }
+});
 /****************************************** Reconstructed Pion Energy ********************************************************************/
 
 const Var kRecoEPion([](const caf::SRProxy *sr) {
@@ -1278,29 +1639,6 @@ const Var muonCalE([](const caf::SRProxy *sr) {
   else
     return double(sr->vtx.elastic.fuzzyk.png[prongNum].calE);
 });
-/************************************************ New Calorimetric Energy for Prongs ******************************************************************/
-const Var muonCalENew([](const caf::SRProxy *sr) {
-  unsigned int muonNum = GetMuonProngIdNew(sr);
-  unsigned int pionNum = GetPionProngId(sr);
-
-  if (sr->vtx.elastic.IsValid != true  || 
-	  sr->vtx.elastic.fuzzyk.npng == 0 || 
-	  muonNum == pionNum)
-    return -100.0;
-
-  else
-  {
-
-	if(sr->vtx.elastic.fuzzyk.png[muonNum].truth.pdg != 13 )
-		return -100.0;
-	else
-	{
-		 double muonCalE = double(sr->vtx.elastic.fuzzyk.png[muonNum].calE);
-		return muonCalE;
-	}
-  }
-});
-
 
 const Var pionCalE([](const caf::SRProxy *sr) {
   unsigned int muonNum = GetMuonProngId(sr);

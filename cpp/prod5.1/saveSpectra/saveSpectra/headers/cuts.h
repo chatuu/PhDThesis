@@ -1,110 +1,5 @@
 #include "headers.h"
 
-/********************************** Get Muon Prong ID *********************************************************/
-
-unsigned int GetMuonProngId(const caf::SRProxy *sr)
-{
-  int prongNum = 0;
-  float maxVal = -1.0;
-
-  if (sr->vtx.elastic.IsValid != true)
-    return 10000;
-
-  for (size_t i = 0; i < sr->vtx.elastic.fuzzyk.npng; ++i)
-  {
-    if (sr->vtx.elastic.fuzzyk.png[i].cvnpart.muonid > maxVal)
-    {
-      maxVal = sr->vtx.elastic.fuzzyk.png[i].cvnpart.muonid;
-      prongNum = i;
-    }
-    else if (sr->vtx.elastic.fuzzyk.png[i].len >= 500)
-    {
-      maxVal = 1.0;
-      prongNum = i;
-    }
-  }
-  return prongNum;
-}
-
-
-/********************************** Get Muon Prong ID based on Single Particle CVN *****************************/
-
-unsigned int GetMuonProngIdNew(const caf::SRProxy *sr)
-{
-  int prongNum = 0;
-  float maxVal = -1.0;
-
-  if (sr->vtx.elastic.IsValid != true)
-    return 10000;
-
-  for (size_t i = 0; i < sr->vtx.elastic.fuzzyk.npng; ++i)
-  {
-    if (sr->vtx.elastic.fuzzyk.png[i].spprongcvnpart5label.muonid > maxVal)
-    {
-      maxVal = sr->vtx.elastic.fuzzyk.png[i].spprongcvnpart5label.muonid;
-      prongNum = i;
-    }
-    else if (sr->vtx.elastic.fuzzyk.png[i].len >= 500)
-    {
-      maxVal = 1.0;
-      prongNum = i;
-    }
-  }
-  return prongNum;
-}
-
-/********************************** Get Pion Prong ID *********************************************************/
-
-unsigned int GetPionProngId(const caf::SRProxy *sr)
-{
-  unsigned int muonNum = GetMuonProngId(sr);
-  if (muonNum == 10000 || sr->vtx.elastic.IsValid != true)
-    return 10000;
-  else
-  {
-    int prongNum = 0;
-    float maxVal = -1;
-
-    for (unsigned int i = 0; i < sr->vtx.elastic.fuzzyk.npng; ++i)
-    {
-      if (sr->vtx.elastic.fuzzyk.png[i].cvnpart.pionid > maxVal &&
-          i != muonNum)
-      {
-        maxVal = sr->vtx.elastic.fuzzyk.png[i].cvnpart.pionid;
-        prongNum = i;
-      }
-    }
-    return prongNum;
-  }
-}
-/********************************** Get Pion Prong ID using Single Particle CVN *******************************/
-
-unsigned int GetPionProngIdNew(const caf::SRProxy *sr)
-{
-  unsigned int muonNum = GetMuonProngIdNew(sr);
-  if (muonNum == 10000 || sr->vtx.elastic.IsValid != true)
-    return 10000;
-  else
-  {
-    int prongNum = 0;
-    float maxVal = -1;
-
-    for (unsigned int i = 0; i < sr->vtx.elastic.fuzzyk.npng; ++i)
-    {
-      if (sr->vtx.elastic.fuzzyk.png[i].spprongcvnpart5label.pionid > maxVal &&
-          i != muonNum)
-      {
-        maxVal = sr->vtx.elastic.fuzzyk.png[i].spprongcvnpart5label.pionid;
-        prongNum = i;
-      }
-    }
-    return prongNum;
-  }
-}
-
-
-
-
 /********************************** Prong based Muon ID cut using CVN ******************************************/
 const Cut muonIDCutCVNBased([](const caf::SRProxy *sr) {
   unsigned int muonNum = GetMuonProngId(sr);
@@ -310,31 +205,6 @@ const Cut kMuonIDCut([](const caf::SRProxy *sr) {
     return false;
 });
 
-//********************************** Selecting Suspicious Muons *****************************************************
-
-const Cut cuttingSuspiciousEvents([](const caf::SRProxy *sr){
-  unsigned int muonNum = GetMuonProngIdNew(sr);
-  unsigned int pionNum = GetPionProngId(sr);
-
-  if (sr->vtx.elastic.IsValid != true  || 
-	  sr->vtx.elastic.fuzzyk.npng == 0 || 
-	  muonNum == pionNum)
-    return false;
-  else
-  {
-    double muonLen          = double(sr->vtx.elastic.fuzzyk.png[muonNum].len);
-    double trueMuonKE       = double((sr->vtx.elastic.fuzzyk.png[muonNum].truth.p.E - 0.105658)); 
-    double calculatedMuonKE = (0.00206123*muonLen + 0.029106);
-    double diff             = std::abs((trueMuonKE - calculatedMuonKE));
-    //printf("True: %f Calculated: %f \n",trueMuonKE, calculatedMuonKE);
-    if (muonLen < 500 && diff > 0.5)
-      return true;
-    else
-      return false;
-  }
-});
-
-
 //********************************** NuMu CC MuonID Funtion *********************************************************
 const Var kBestMuonIDIndex([](const caf::SRProxy *sr) -> int
 {
@@ -350,7 +220,8 @@ const Cut NuMuCCMuonIDCut([](const caf::SRProxy *sr) {
 	if (bestidx < 0 || bestidx >= (int) sr->trk.kalman.ntracks)
 		return false;
 	double muonid = sr->trk.kalman.tracks[bestidx].muonid;
-	if (muonid > 0.24)
+	//if (muonid > 0.24) This is the old cut value
+	if (muonid > 0.615) // This cut value is optimized for Coherent Analysis
 		return true;
 	else
 		return false;
@@ -440,7 +311,7 @@ const Cut kPionIdOldCut([](const caf::SRProxy *sr) {
     return false;
   else
   {
-    int prongNum = 0;
+    int prongNum = -1;
     float maxVal = -1;
     // if(sr->vtx.nelastic==0 || sr->vtx.elastic.fuzzyk.npng==0)
     //   return -5.0;
@@ -459,7 +330,7 @@ const Cut kPionIdOldCut([](const caf::SRProxy *sr) {
 
     //return double(maxVal);
 
-    if (maxVal > 0.9 || maxVal == 0.9)
+    if ((maxVal > 0.9 || maxVal == 0.9) && prongNum != -1)
       return true;
     else
       return false;
@@ -472,12 +343,12 @@ const Cut kPionIdOldCut([](const caf::SRProxy *sr) {
 //********************************** New Pion ID Cut *******************************************************************
 
 const Cut kPionIdCut([](const caf::SRProxy *sr) {
-  unsigned int muonNum = GetMuonProngId(sr);
+  unsigned int muonNum = GetMuonProngIdNew(sr);
   if (muonNum == 10000 || sr->vtx.elastic.IsValid != true)
     return false;
   else
   {
-    int prongNum = 0;
+    int prongNum = -1;
     float maxVal = -1;
     
     for (unsigned int i = 0; i < sr->vtx.elastic.fuzzyk.npng; ++i)
@@ -489,7 +360,7 @@ const Cut kPionIdCut([](const caf::SRProxy *sr) {
         prongNum = i;
       }
     }
-    if (maxVal > 0.7)
+    if (maxVal > 0.705 && prongNum != -1)
       return true;
     else
       return false;
@@ -497,21 +368,6 @@ const Cut kPionIdCut([](const caf::SRProxy *sr) {
 });
 
 //********************************** Replicating NuMuCC inclusive cuts ****************************************
-//********************************** Quality cut based on Vertex Energy 10cm *******************************************************************
-
-const Cut vertexECheck([](const caf::SRProxy *sr) {
-  if (sr->vtx.elastic.IsValid != true)
-    return false;
-  else
-  {
-    double prong3D   = sr->vtx.elastic.prong3dvertexenergyvolume10;
-    if (prong3D == 0)
-      return false;
-    else
-      return true;
-  }
-});
-
 
 //********************************** Vertex Energy Cut *******************************************************************
 
@@ -524,7 +380,7 @@ const Cut kVertexECut([](const caf::SRProxy *sr) {
     double prong3D   = sr->vtx.elastic.prong3dvertexenergyvolume10;
     double prong2D   = sr->vtx.elastic.prong2dvertexenergyvolume10;
     double vertexE10 = (slice - prong3D - prong2D);
-    if (vertexE10 > -0.075)
+    if (vertexE10 > -0.07895)
       return true;
     else
       return false;
@@ -550,55 +406,6 @@ const Cut kVertexECheckCut([](const caf::SRProxy *sr) {
       return true;
   }
 });
-
-//********************************** All the NuMuCC Inc events without QE **************************************************************
-const Cut NuMuCCIntsNoQE([](const caf::SRProxy *sr) {
-  if (sr->mc.nnu == 0)
-    return false;
-  else
-    return (sr->mc.nu[0].iscc &&
-           (sr->mc.nu[0].pdg == 14) &&
-           (sr->mc.nu[0].pdgorig == 14) && 
-		   (sr->mc.nu[0].mode != caf::kQE));
-});
-//********************************** All the NuMuCC Inc events without QE & DIS **************************************************************
-const Cut NuMuCCIntsNoQENoDIS([](const caf::SRProxy *sr) {
-  if (sr->mc.nnu == 0)
-    return false;
-  else
-    return (sr->mc.nu[0].iscc &&
-           (sr->mc.nu[0].pdg == 14) &&
-           (sr->mc.nu[0].pdgorig == 14) && 
-		   (sr->mc.nu[0].mode != caf::kQE) &&
-		   (sr->mc.nu[0].mode != caf::kDIS));
-});
-//********************************** All the NuMuCC Inc events without QE & DIS & RES **************************************************************
-const Cut NuMuCCIntsNoQENoDISNoRES([](const caf::SRProxy *sr) {
-  if (sr->mc.nnu == 0)
-    return false;
-  else
-    return (sr->mc.nu[0].iscc &&
-           (sr->mc.nu[0].pdg == 14) &&
-           (sr->mc.nu[0].pdgorig == 14) && 
-		   (sr->mc.nu[0].mode != caf::kQE) &&
-		   (sr->mc.nu[0].mode != caf::kRes) &&
-		   (sr->mc.nu[0].mode != caf::kDIS));
-});
-//********************************** All the NuMuCC Inc events without QE & DIS & RES & MEC ********************************************************
-const Cut NuMuCCIntsNoQENoDISNoRESNoMEC([](const caf::SRProxy *sr) {
-  if (sr->mc.nnu == 0)
-    return false;
-  else
-    return (sr->mc.nu[0].iscc &&
-           (sr->mc.nu[0].pdg == 14) &&
-           (sr->mc.nu[0].pdgorig == 14) && 
-		   (sr->mc.nu[0].mode != caf::kQE) &&
-		   (sr->mc.nu[0].mode != caf::kRes) &&
-		   (sr->mc.nu[0].mode != caf::kMEC) &&
-		   (sr->mc.nu[0].mode != caf::kDIS));
-});
-
-
 
 
 // const Cut isPion([](const caf::SRProxy *sr){

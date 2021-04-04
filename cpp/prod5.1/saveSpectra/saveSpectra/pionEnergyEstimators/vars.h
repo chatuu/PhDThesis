@@ -435,7 +435,7 @@ const Var kPionKEEstNew([](const caf::SRProxy *sr){
     }
   }
 });
-/****************************************** Pion KE Resolution using pion energy Estimator ***************************************/
+/****************************************** True Pion KE made for pion energy Estimator ***************************************/
 const Var kTruePionKENew([](const caf::SRProxy *sr){
 
   //unsigned int muonNum = GetMuonProngIdNew(sr);
@@ -476,7 +476,43 @@ const Var kTruePionKENew([](const caf::SRProxy *sr){
     }
   }
 });
+/****************************************** CalE made for pion energy Estimator ***************************************/
+const Var kPionCalENew([](const caf::SRProxy *sr){
 
+  //unsigned int muonNum = GetMuonProngIdNew(sr);
+  int pionNum = -1;
+
+  float pionID = -1.0;
+  double calE = -1.0;
+
+  if (sr->vtx.elastic.IsValid != true  || 
+	    sr->vtx.elastic.fuzzyk.npng == 0 )
+    return -100.0;
+  else
+  {
+	  for (unsigned int i = 0; i < sr->vtx.elastic.fuzzyk.npng; ++i)
+	  {
+		  if (sr->vtx.elastic.fuzzyk.png[i].truth.pdg == 211 && 
+			    sr->vtx.elastic.fuzzyk.png[i].spprongcvnpart5label.pionid > pionID)
+		  {
+			  pionID  = sr->vtx.elastic.fuzzyk.png[i].spprongcvnpart5label.pionid;
+			  pionNum = i;
+		  }		
+	  }
+    if (pionNum == -1)
+      return -100.0;
+    else
+    {
+      calE = double(sr->vtx.elastic.fuzzyk.png[pionNum].calE);	   
+      if (calE <= 2.0)
+	    {
+		    return calE;
+	    }
+	    else
+		    return -100.0;
+    }
+  }
+});
 
 /****************************************** muon Prong Length ********************************************************************/
 const Var kMuonProngLen([](const caf::SRProxy *sr) {
@@ -496,6 +532,83 @@ const Var kMuonProngLen([](const caf::SRProxy *sr) {
 	return muonLen;
   }
 });
+
+/****************************************** muon PID ********************************************************************/
+const Var muonPID([](const caf::SRProxy *sr) {
+  unsigned int muonNum = GetMuonProngIdNew(sr);
+  unsigned int pionNum = GetPionProngIdNew(sr);
+
+  if (sr->vtx.elastic.IsValid != true  || 
+	    sr->vtx.elastic.fuzzyk.npng == 0 || 
+	  muonNum == pionNum)
+    return -100.0;
+
+  else
+  {
+
+    double muonPID = double(sr->vtx.elastic.fuzzyk.png[muonNum].truth.pdg);
+
+	return muonPID;
+  }
+});
+
+/****************************************** pion PID ********************************************************************/
+const Var pionPID([](const caf::SRProxy *sr) {
+  unsigned int muonNum = GetMuonProngIdNew(sr);
+  unsigned int pionNum = GetPionProngIdNew(sr);
+
+  if (sr->vtx.elastic.IsValid != true  || 
+	    sr->vtx.elastic.fuzzyk.npng == 0 || 
+	  muonNum == pionNum)
+    return -100.0;
+
+  else
+  {
+
+    double pionPID = double(sr->vtx.elastic.fuzzyk.png[pionNum].truth.pdg);
+
+	return pionPID;
+  }
+});
+
+
+/****************************************** old pionID ********************************************************************/
+const Var oldPionID([](const caf::SRProxy *sr) {
+  unsigned int muonNum = GetMuonProngIdNew(sr);
+  unsigned int pionNum = GetPionProngIdNew(sr);
+
+  if (sr->vtx.elastic.IsValid != true  || 
+	    sr->vtx.elastic.fuzzyk.npng == 0 || 
+	  muonNum == pionNum)
+    return -100.0;
+
+  else
+  {
+
+    double pionID = double(sr->vtx.elastic.fuzzyk.png[pionNum].cvnpart.pionid);
+
+	return pionID;
+  }
+});
+
+/****************************************** new pionID ********************************************************************/
+const Var newPionID([](const caf::SRProxy *sr) {
+  unsigned int muonNum = GetMuonProngIdNew(sr);
+  unsigned int pionNum = GetPionProngIdNew(sr);
+
+  if (sr->vtx.elastic.IsValid != true  || 
+	    sr->vtx.elastic.fuzzyk.npng == 0 || 
+	  muonNum == pionNum)
+    return -100.0;
+
+  else
+  {
+
+    double pionID = double(sr->vtx.elastic.fuzzyk.png[pionNum].spprongcvnpart5label.pionid);
+	  return pionID;
+  }
+});
+
 /****************************************** pion Prong Length ********************************************************************/
 const Var kPionProngLen([](const caf::SRProxy *sr) {
   unsigned int muonNum = GetMuonProngId(sr);
