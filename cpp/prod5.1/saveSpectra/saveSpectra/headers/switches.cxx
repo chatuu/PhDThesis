@@ -1,4 +1,3 @@
-//#include "headers.h"
 #include "switches.h"
 
 switches::switches()
@@ -13,7 +12,6 @@ switches::~switches()
 void switches::InsertSwitch(SwitchInfo Switch)
 {
     switchList.push_back(Switch);
-
 }
 
 bool switches::checkToSaveSpectrum(std::string key)
